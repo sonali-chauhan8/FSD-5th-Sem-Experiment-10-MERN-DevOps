@@ -1,0 +1,19 @@
+{
+  "name": "question10-mern-devops",
+  "version": "1.0.0",
+  "description": "B.Tech FSD Lab Experiment 10: Containerization, Docker, Automated CI/CD, and Monitoring",
+  "scripts": {
+    "test": "npm --prefix backend test && npm --prefix frontend run test:run",
+    "test:backend": "npm --prefix backend test",
+    "test:frontend": "npm --prefix frontend run test:run",
+    "build": "npm --prefix frontend run build",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "docker:up": "docker compose up --build -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "docker:ps": "docker compose ps"
+  },
+  "author": "B.Tech Fifth-Semester Student",
+  "license": "ISC"
+}

@@ -1,0 +1,39 @@
+name: Continuous Deployment (CD - Optional)
+
+# This workflow triggers only when secrets are explicitly configured in GitHub Repository Settings.
+# Never executes or claims deployment without verified destination credentials.
+
+on:
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+  push:
+    branches: [main]
+
+jobs:
+  deploy-backend-render:
+    name: Deploy Backend to Render (Webhook Trigger)
+    runs-on: ubuntu-latest
+    # Skips automatically if the Render deploy hook secret is not provided
+    if: "${{ secrets.RENDER_DEPLOY_HOOK_URL != '' }}"
+    steps:
+      - name: Trigger Render Deploy Webhook
+        run: |
+          echo "Triggering Render backend deployment via secure webhook..."
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+
+  deploy-frontend-vercel:
+    name: Deploy Frontend to Vercel
+    runs-on: ubuntu-latest
+    # Skips automatically if Vercel token is not provided
+    if: "${{ secrets.VERCEL_TOKEN != '' }}"
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: ./frontend
+          vercel-args: '--prod'

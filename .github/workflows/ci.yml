@@ -1,0 +1,109 @@
+name: Full-Stack CI Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ==================================================================
+  # JOB 1: Backend Testing & Linting
+  # ==================================================================
+  test-backend:
+    name: Backend Tests (Jest & Supertest)
+    runs-on: ubuntu-latest
+
+    services:
+      # Ephemeral isolated MongoDB service container for test execution
+      mongodb:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Backend Dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Run Backend Integration & Health Tests
+        working-directory: ./backend
+        env:
+          NODE_ENV: test
+          PORT: 5002
+          TEST_MONGODB_URI: mongodb://localhost:27017/student_mgmt_ci_test
+          CLIENT_URL: http://localhost:5173
+        run: npm test
+
+  # ==================================================================
+  # JOB 2: Frontend Component Tests & Production Build
+  # ==================================================================
+  test-and-build-frontend:
+    name: Frontend Tests & Production Build (Vitest & Vite)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Run Frontend Component Tests (Vitest)
+        working-directory: ./frontend
+        run: npm run test:run
+
+      - name: Build Frontend Production Bundle (Vite)
+        working-directory: ./frontend
+        env:
+          VITE_API_BASE_URL: /api
+        run: npm run build
+
+  # ==================================================================
+  # JOB 3: Docker Images Build Verification
+  # ==================================================================
+  build-docker-images:
+    name: Docker Images Build Verification
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-and-build-frontend]
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Backend Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: false
+          tags: student-mgmt-backend:latest
+
+      - name: Build Frontend Docker Image (Multi-stage + Nginx)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: false
+          tags: student-mgmt-frontend:latest
